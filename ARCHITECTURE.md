@@ -1,16 +1,46 @@
-# Architecture
+# Chatline — Communication and Workflow Architecture — Reference Architecture
 
-This public repository is intentionally a safe overview of the project. It documents product boundaries, major components, and engineering decisions without exposing private implementation details, credentials, customer data, or deployable production internals.
+## What is known
 
-## Boundaries
+The repository currently describes a lightweight communication/workflow application at a high level. It does not publish messaging backend source, account deployment data or real chat histories.
 
-- Public: product goals, selected capabilities, technology direction, and operational principles.
-- Private: source code, infrastructure configuration, secrets, model weights, production data, and internal runbooks.
+## Engineering question
 
-## Reliability and security
+Reliable multi-party communication must separate message creation from delivery, manage ordering and retries, and enforce conversation membership before every read/write.
 
-Production systems use explicit configuration, structured logging, automated checks, least-privilege credentials, health checks, and reproducible deployment practices. Exact operational values are kept private.
+## Illustrative flow (not a production diagram)
 
-## Known limitations
+```mermaid
+flowchart TD
+  Participant[Authenticated participant] --> Client[Conversation UI]
+  Client --> API[Message API and membership policy]
+  API --> Inbox[Accepted message and idempotency key]
+  Inbox --> Store[(Message records and delivery state)]
+  Inbox --> Dispatch[Async fanout / optional live transport]
+  Dispatch --> Client
+  Store --> Audit[Privacy-aware retention and audit]
+```
 
-This overview does not claim public source availability, production scale, or benchmark results unless those are explicitly published.
+## Design invariants and risk controls
+
+- Only authorized conversation members may see or send messages; server must check membership for each operation.
+- Delivery and read acknowledgments differ from durable message acceptance; show separate states.
+- Retries require idempotency keys to prevent accidental duplicates and provide stable ordering.
+- Retention, attachment access, blocking and export rules must be specified and tested before a real user launch.
+
+## Synthetic scenario to test in future
+
+Synthetic out-of-order delivery: message B reaches a device before A; client displays consistent server ordering and does not duplicate A when it is retried.
+
+## Failure mode / trade-off
+
+A UI showing “sent” before server acknowledgment creates misleading delivery guarantees.
+
+## Evidence required before confirming features
+
+- A versioned implementation artifact or test contract, reviewed against original source.
+- A deterministic fixture that exercises negative permissions, errors and recovery.
+- A dated CI run linked to the fixture rather than to documentation formatting alone.
+- Authorized sanitized images/measurements; never actual account or customer data.
+
+This file should be updated when real evidence becomes publishable; until then these are **design notes only**. See [README.md](README.md) and [ROADMAP.md](ROADMAP.md).
